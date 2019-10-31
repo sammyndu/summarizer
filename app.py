@@ -22,6 +22,7 @@ namespace = api.namespace('', description='Main API Routes')
 
 
 def interact_model(model_name,seed,nsamples,batch_size,length,temperature,top_k,models_dir,article):
+    result_list = []
     models_dir = os.path.expanduser(os.path.expandvars(models_dir))
     if batch_size is None:
         batch_size = 1
@@ -59,14 +60,24 @@ def interact_model(model_name,seed,nsamples,batch_size,length,temperature,top_k,
             # raw_text = input("Model prompt >>> ")
         context_tokens = enc.encode(raw_text)
         generated = 0
-        for _ in range(nsamples // batch_size):
-            out = sess.run(output, feed_dict={
-                context: [context_tokens for _ in range(batch_size)]
-            })[:, len(context_tokens):]
-            for i in range(batch_size):
-                generated += 1
-                text = enc.decode(out[i])
-                return text
+        for i in range(3):
+            for _ in range(nsamples // batch_size):
+                out = sess.run(output, feed_dict={
+                    context: [context_tokens for _ in range(batch_size)]
+                })[:, len(context_tokens):]
+                for i in range(batch_size):
+                    generated += 1
+                    text = enc.decode(out[i])
+                    result_list.append(str(text))
+        result_list.append(str(raw_text))
+        result_list = pd.Series(result_list)
+        tfidf = TfidfVectorizer(stop_words='english')
+        tfidf_matrix = tfidf.fit_transform(result_list)
+        cosine_sim = linear_kernel(tfidf_matrix)
+        sim_scores = list(enumerate(cosine_sim[3]))
+        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+        sim_scores = sim_scores[1]
+        return result_list[sim_scores[0]].split("<|endoftext|>")[0]
 
 @namespace.route("/summarizer")
 class Summary(Resource):
@@ -76,12 +87,12 @@ class Summary(Resource):
     if article == None:
         return {"msg":"invalid request"}, 400
     result = interact_model(
-      '117M',
+      '774M',
       None,
       1,
       1,
-      50,
-      1,
+      100,
+      0.5,
       0,
       './models',
       article
