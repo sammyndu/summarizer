@@ -53,9 +53,9 @@ def interact_model(model_name,seed,nsamples,batch_size,length,temperature,top_k,
         saver.restore(sess, ckpt)
 
         # while True:
-        raw_text = article+"  TF;DR:"
+        raw_text = article+"\n TF;DR:"
         while not raw_text:
-            return {'Prompt should not be empty!'}
+            return 'Text should not be empty!'
             # raw_text = input("Model prompt >>> ")
         context_tokens = enc.encode(raw_text)
         generated = 0
